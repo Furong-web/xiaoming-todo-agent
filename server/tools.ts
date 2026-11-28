@@ -14,6 +14,7 @@ import {
   resolveSummaryDate,
 } from "./coach.ts";
 import type { CheckInStore, QuizStore } from "./checkin-store.ts";
+import type { HistoryStore } from "./history-store.ts";
 import { setTaskDone } from "./task-completion.ts";
 import {
   assignDisplayIds,
@@ -31,6 +32,8 @@ export interface ToolContext {
   tasks: TaskStore;
   checkIns: CheckInStore;
   quizzes: QuizStore;
+  /** 可选：删除已完成任务时归档到历史 */
+  history?: HistoryStore;
   now?: Date;
 }
 
@@ -173,7 +176,7 @@ export const TOOLS: ToolDefinition[] = [
       parameters: {
         type: "object",
         properties: {
-          id: { type: "string", description: "任务 id 或展示序号（如 101）" },
+          id: { type: "string", description: "任务 id 或子任务展示序号（如 1、2）" },
           module: {
             type: "string",
             description: "学习模块/科目，如 数学、英语、政治、专业课",
@@ -240,15 +243,13 @@ export const TOOLS: ToolDefinition[] = [
   },
 ];
 
-/** 用展示序号(101/102/103)定位真实 UUID。 */
+/** 用子任务展示序号(1/2/3)定位真实 UUID；父任务没有序号，只能用 UUID 或标题指代。 */
 function resolveId(idOrSeq: string, store: TaskStore): string | null {
   const all = store.list();
   if (all.some((task) => task.id === idOrSeq)) return idOrSeq;
-  // 允许用户用表格里看到的短序号指代
-  let counter = 100;
-  for (const task of all) {
-    counter += 1;
-    if (String(counter) === idOrSeq) return task.id;
+  // 允许用户用清单里看到的序号指代
+  for (const [id, seq] of assignDisplayIds(all)) {
+    if (String(seq) === idOrSeq) return id;
   }
   return null;
 }
@@ -317,8 +318,9 @@ export function executeTool(
           (task.parentId ?? "") === (parentId ?? ""),
       );
       if (duplicate) {
+        const dupSeq = assignDisplayIds(all).get(duplicate.id);
         return JSON.stringify({
-          error: `「${title}」已经存在（ID ${assignDisplayIds(all).get(duplicate.id)}），没有重复创建。`,
+          error: `「${title}」已经存在${dupSeq ? `（序号 ${dupSeq}）` : ""}，没有重复创建。`,
           duplicated: true,
           task: serializeOne(duplicate, all),
         });
@@ -370,7 +372,7 @@ export function executeTool(
       const doneFlag = typeof changes.done === "boolean" ? changes.done : undefined;
       let updated;
       if (doneFlag !== undefined && Object.keys(changes).length === 1) {
-        updated = setTaskDone(store, id, doneFlag, now);
+        updated = setTaskDone(store, id, doneFlag, now, context.history);
       } else {
         updated = store.update(id, {
           ...changes,
@@ -380,14 +382,19 @@ export function executeTool(
         });
       }
       if (!updated) return JSON.stringify({ error: "找不到这条任务，请先调用 list_tasks 确认。" });
+      // 没走联动模块的分支（同时改标题等字段）也要同步历史记录
+      if (doneFlag !== undefined && context.history) {
+        if (doneFlag) context.history.recordCompletion(updated, store.list(), now);
+        else context.history.withdraw(id);
+      }
       return JSON.stringify({ ok: true, task: serializeOne(updated, store.list()) });
     }
 
     case "delete_task": {
       const id = resolveId(String(args.id ?? ""), store);
       if (!id) return JSON.stringify({ error: "找不到这条任务，请先调用 list_tasks 确认。" });
-      const all = store.list();
-      const descendants = collectDescendants(id, all);
+      const descendants = collectDescendants(id, store.list());
+      // 历史记录在勾选完成时已经写过，删除不再重复处理
       for (const child of descendants) store.remove(child.id);
       store.remove(id);
       return JSON.stringify({ ok: true, removedChildren: descendants.length });
@@ -438,8 +445,8 @@ export function executeTool(
         },
         now,
       );
-      // 打卡同时把任务置为完成，并联动父子任务
-      setTaskDone(store, id, true);
+      // 打卡同时把任务置为完成，并联动父子任务与历史记录
+      setTaskDone(store, id, true, now ?? new Date(), context.history);
 
       return JSON.stringify({
         ok: true,

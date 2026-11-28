@@ -3,6 +3,7 @@ import type { ChatMessage } from "../shared/chat.ts";
 import { detectQuadrant } from "../shared/quadrants.ts";
 import { replyWithModel } from "./agent-ml.ts";
 import { createCheckInStore, createQuizStore } from "./checkin-store.ts";
+import { createHistoryStore } from "./history-store.ts";
 import { setTaskDone } from "./task-completion.ts";
 import { createJsonTaskStore } from "./task-store.ts";
 import {
@@ -33,6 +34,8 @@ const tasks = createJsonTaskStore(join("data", "tasks.json"));
 // 打卡记录与测验题独立存储，避免污染官方 tasks.json 的 schema
 export const checkIns = createCheckInStore(join("data", "checkins.json"));
 const quizzes = createQuizStore(join("data", "quizzes.json"));
+// 删除已完成任务时留一份快照，供「历史」页按周复盘
+const history = createHistoryStore(join("data", "history.json"));
 
 // ---------- 关键词：意图判定 ----------
 
@@ -127,7 +130,7 @@ export async function reply(messages: ChatMessage[]): Promise<string> {
   const text = clean(raw);
 
   // 优先走大模型（未配置 Key 或调用失败时会返回 null，回退到规则版）
-  const fromModel = await replyWithModel(messages, { tasks, checkIns, quizzes });
+  const fromModel = await replyWithModel(messages, { tasks, checkIns, quizzes, history });
   if (fromModel !== null) return fromModel;
 
   if (!text) return "你好，欢迎使用小明智能体！我可以帮你记待办、看清单、标记完成或删除。";
@@ -139,7 +142,7 @@ export async function reply(messages: ChatMessage[]): Promise<string> {
     const snippet = stripFiller(text.replace(UNDO_WORDS, ""));
     const target = matchTask(snippet, all.filter((task) => task.done)) ?? matchTask(snippet, all);
     if (!target) return "我没找到要恢复的任务。先看看清单里有什么？";
-    setTaskDone(tasks, target.id, false);
+    setTaskDone(tasks, target.id, false, new Date(), history);
     return `已把「${target.title}」恢复成待办 ⏳`;
   }
 
@@ -198,6 +201,7 @@ function handleDelete(text: string, all: Task[]): string {
   }
   const target = matchTask(snippet, all) ?? candidates[0];
   const children = collectDescendants(target.id, all);
+  // 历史记录在勾选完成时已经写过，删除不重复处理
   for (const child of children) tasks.remove(child.id);
   tasks.remove(target.id);
   return children.length > 0
@@ -266,7 +270,7 @@ function handleDone(text: string, all: Task[]): string {
   }
   if (target.done) return `「${target.title}」已经是完成状态了 ✅ 不用再标记一次。`;
   const children = collectDescendants(target.id, all);
-  setTaskDone(tasks, target.id, true);
+  setTaskDone(tasks, target.id, true, new Date(), history);
   return children.length > 0
     ? `已把「${target.title}」标记为完成 ✅（${children.length} 条子任务也一并完成了）`
     : `已把「${target.title}」标记为完成 ✅`;

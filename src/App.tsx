@@ -17,6 +17,7 @@ import {
 import { Sidebar } from "./Sidebar.tsx";
 import { ChatHistory } from "./ChatHistory.tsx";
 import { TaskBoard } from "./TaskBoard.tsx";
+import { HistoryView } from "./HistoryView.tsx";
 
 function isSendShortcut(event: KeyboardEvent<HTMLTextAreaElement>) {
   // 中文输入法会用 Enter 确认选词，部分浏览器此时只报告键码 229。
@@ -31,7 +32,7 @@ function titleFrom(content: string): string {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<"chat" | "board">("chat");
+  const [tab, setTab] = useState<"chat" | "board" | "history">("chat");
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   // null 表示尚未落库的新对话，发出第一条消息时才真正创建
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -226,8 +227,10 @@ export default function App() {
                 <small>Enter 发送 · Shift + Enter 换行</small>
               </div>
             </>
-          ) : (
+          ) : tab === "board" ? (
             <TaskBoard refreshKey={refreshKey} />
+          ) : (
+            <HistoryView refreshKey={refreshKey} />
           )}
         </main>
       </div>

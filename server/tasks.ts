@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import type { CheckInStore } from "./checkin-store.ts";
+import type { HistoryStore } from "./history-store.ts";
 import { setTaskDone } from "./task-completion.ts";
 import type { TaskStore } from "./task-store.ts";
 
@@ -12,7 +13,7 @@ const updateTaskSchema = createTaskSchema
 
 const taskNotFound = { error: "找不到这条任务。" };
 
-export function taskRouter(tasks: TaskStore, checkIns?: CheckInStore) {
+export function taskRouter(tasks: TaskStore, checkIns?: CheckInStore, history?: HistoryStore) {
   const router = Router();
 
   router.get("/", (_req, res) => {
@@ -48,15 +49,16 @@ export function taskRouter(tasks: TaskStore, checkIns?: CheckInStore) {
       return res.status(400).json({ error: "请提供有效的 title 或 done 字段。" });
     }
 
-    // 只切换完成状态时，联动整个家族树（父→子、子→父）
+    // 只切换完成状态时，联动整个家族树（父→子、子→父），并同步历史记录
     const updated =
       input.data.done !== undefined && Object.keys(input.data).length === 1
-        ? setTaskDone(tasks, req.params.id, input.data.done)
+        ? setTaskDone(tasks, req.params.id, input.data.done, new Date(), history)
         : tasks.update(req.params.id, input.data);
     if (!updated) return res.status(404).json(taskNotFound);
     res.json(updated);
   });
 
+  // 删除不动历史：完成过的任务记录已存在，未完成的本来就没有
   router.delete("/:id", (req, res) => {
     if (!tasks.remove(req.params.id)) return res.status(404).json(taskNotFound);
     res.sendStatus(204);

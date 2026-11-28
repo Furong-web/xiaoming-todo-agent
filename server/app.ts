@@ -4,6 +4,8 @@ import { chatRequestSchema, type ChatMessage } from "../shared/chat.ts";
 import type { CheckInStore } from "./checkin-store.ts";
 import type { ConversationStore } from "./conversation-store.ts";
 import { conversationsRouter } from "./conversations.ts";
+import type { HistoryStore } from "./history-store.ts";
+import { historyRouter } from "./history.ts";
 import type { TaskStore } from "./task-store.ts";
 import { taskRouter } from "./tasks.ts";
 
@@ -14,9 +16,11 @@ interface AppDependencies {
   checkIns?: CheckInStore;
   /** 可选：提供后，/api/chat 会把对话按会话持久化 */
   conversations?: ConversationStore;
+  /** 可选：提供后，删除已完成任务会留下历史快照，并开放 /api/history */
+  history?: HistoryStore;
 }
 
-export function createApp({ reply, tasks, checkIns, conversations }: AppDependencies) {
+export function createApp({ reply, tasks, checkIns, conversations, history }: AppDependencies) {
   const app = express();
   app.use(express.json({ limit: "1mb" }));
 
@@ -50,7 +54,8 @@ export function createApp({ reply, tasks, checkIns, conversations }: AppDependen
   });
 
   if (conversations) app.use("/api/conversations", conversationsRouter(conversations));
-  app.use("/api/tasks", taskRouter(tasks, checkIns));
+  app.use("/api/tasks", taskRouter(tasks, checkIns, history));
+  if (history) app.use("/api/history", historyRouter(history));
   app.use("/api", (_req, res) => res.status(404).json({ error: "接口不存在。" }));
   app.use(handleApiError);
 

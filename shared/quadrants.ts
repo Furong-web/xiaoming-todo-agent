@@ -7,9 +7,9 @@
  */
 export const QUADRANTS = [
   { id: "urgent-important", label: "紧急且重要", hint: "立刻去做" },
-  { id: "not-urgent-not-important", label: "不紧急不重要", hint: "有空再说" },
   { id: "urgent-not-important", label: "紧急不重要", hint: "快速处理" },
   { id: "not-urgent-important", label: "不紧急但重要", hint: "排进计划" },
+  { id: "not-urgent-not-important", label: "不紧急不重要", hint: "有空再说" },
 ] as const;
 
 export type QuadrantId = (typeof QUADRANTS)[number]["id"];

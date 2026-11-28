@@ -543,13 +543,24 @@ header .tabs button.active {
 .board-item-label span {
   overflow-wrap: anywhere;
 }
-.board-item-id {
+/* 右侧状态标注：未完成看截止日期，已完成看完成时刻 */
+.board-status {
+  flex: none;
   font-size: 12px;
   color: #a3adbd;
   white-space: nowrap;
 }
-.board-item-id.is-completed-at {
+.board-status.done {
   color: #4b9a72;
+}
+.board-status.due {
+  color: #627086;
+}
+.board-status.overdue {
+  color: #c8392e;
+}
+.board-card-header .board-status {
+  font-size: 12px;
 }
 .board-delete {
   border: 0;
@@ -570,6 +581,188 @@ header .tabs button.active {
 }
 .board-delete:disabled {
   cursor: default;
+}
+
+/* ---------- 任务历史：按周折叠的文件夹 ---------- */
+.history-filters {
+  display: grid;
+  gap: 10px;
+}
+.history-search {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  padding: 10px 14px;
+  border: 1px solid #d8deea;
+  border-radius: 12px;
+  background: white;
+  color: inherit;
+}
+.history-search:focus-visible {
+  outline: 2px solid #1643e7;
+  outline-offset: 1px;
+}
+.history-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #627086;
+}
+.history-dates label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.history-dates input {
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  background: white;
+  color: inherit;
+}
+.history-chip {
+  border: 1px solid #d8deea;
+  background: white;
+  color: #384860;
+  font-size: 12px;
+  padding: 6px 11px;
+  border-radius: 20px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.history-chip:hover {
+  border-color: #1643e7;
+  color: #1643e7;
+  background: #eaf0ff;
+}
+.history-chip.clear {
+  color: #c8392e;
+}
+.history-chip.clear:hover {
+  border-color: #c8392e;
+  background: #fdf0ee;
+  color: #c8392e;
+}
+.history-folder {
+  background: white;
+  border: 1px solid #e3e6ed;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px #1b305808;
+  overflow: hidden;
+}
+.history-folder.is-open {
+  border-color: #cbd7f5;
+}
+.history-folder-head {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  text-align: left;
+  color: #192538;
+}
+.history-folder-head:hover {
+  background: #f8f9fc;
+}
+.history-folder-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.history-folder-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.history-folder-range {
+  font-size: 12px;
+  color: #8a94a6;
+}
+.history-folder-head .board-count {
+  margin-left: auto;
+}
+.history-folder-arrow {
+  font-size: 12px;
+  color: #a3adbd;
+  width: 12px;
+}
+.history-days {
+  display: grid;
+  gap: 14px;
+  padding: 4px 16px 16px;
+  border-top: 1px solid #f1f3f8;
+}
+.history-day {
+  padding-top: 12px;
+}
+.history-day + .history-day {
+  border-top: 1px dashed #eef1f7;
+}
+.history-day-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #515c71;
+  margin-bottom: 6px;
+}
+.history-day-head small {
+  font-size: 11px;
+  font-weight: 400;
+  color: #a3adbd;
+}
+.history-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.history-items li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 14px;
+  color: #384860;
+}
+.history-dot {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #eaf6ef;
+  color: #4b9a72;
+  font-size: 10px;
+  display: grid;
+  place-items: center;
+}
+.history-title {
+  overflow-wrap: anywhere;
+}
+.history-parent {
+  font-size: 12px;
+  color: #a3adbd;
+  overflow-wrap: anywhere;
+}
+.history-tag {
+  flex: none;
+  font-size: 11px;
+  color: #3452b3;
+  background: #eaf0ff;
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+.history-time {
+  margin-left: auto;
+  flex: none;
+  font-size: 12px;
+  color: #a3adbd;
 }
 
 @media (max-width: 720px) {

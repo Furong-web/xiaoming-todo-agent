@@ -33,9 +33,9 @@ test("detectQuadrant 区分四种口语表达，否定式不被误判", () => {
 test("象限顺序按用户指定的四个分组", () => {
   assert.deepEqual(QUADRANTS.map((item) => item.label), [
     "紧急且重要",
-    "不紧急不重要",
     "紧急不重要",
     "不紧急但重要",
+    "不紧急不重要",
   ]);
   assert.equal(quadrantFromFlags(true, true), "urgent-important");
   assert.equal(quadrantFromFlags(false, false), "not-urgent-not-important");

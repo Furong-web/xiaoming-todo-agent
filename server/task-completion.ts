@@ -9,17 +9,20 @@
  *   已完成的任务重复勾选不会刷新时刻，避免把「刚才又点了一下」当成新的完成时间。
  */
 import { collectDescendants } from "./task-model.ts";
+import type { HistoryStore } from "./history-store.ts";
 import type { TaskStore } from "./task-store.ts";
 
 /**
  * 切换某任务的完成状态并联动整个家族树，返回更新后的该任务。
  * 找不到任务时返回 undefined。now 仅用于测试注入，生产环境一律取当前真实时间。
+ * 传入 history 时，完成/取消完成会同步写/撤历史记录。
  */
 export function setTaskDone(
   store: TaskStore,
   id: string,
   done: boolean,
   now: Date = new Date(),
+  history?: HistoryStore,
 ) {
   const current = store.list().find((task) => task.id === id);
   if (!current) return undefined;
@@ -29,7 +32,11 @@ export function setTaskDone(
   const mark = (taskId: string, value: boolean) => {
     const task = store.list().find((item) => item.id === taskId);
     if (!task || task.done === value) return;
-    store.update(taskId, { done: value, completedAt: value ? stamp : undefined });
+    const updated = store.update(taskId, { done: value, completedAt: value ? stamp : undefined });
+    if (!updated || !history) return;
+    // 完成即进历史，取消完成就撤掉记录
+    if (value) history.recordCompletion(updated, store.list(), now);
+    else history.withdraw(taskId);
   };
 
   mark(id, done);

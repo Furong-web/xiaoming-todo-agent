@@ -118,7 +118,7 @@ test("子任务：父任务完成带动子任务，子任务全完成带动父�
   assert.equal(children.length, 2);
 
   const listed = await say("我有哪些任务？");
-  assert.match(listed, /□ 102 洗奶瓶|□ 10\d 洗奶瓶/);
+  assert.match(listed, /□ 1 洗奶瓶/);
 
   await say("买牛奶做完了");
   assert.equal(store.list().filter((task) => task.parentId).every((task) => task.done), true);
@@ -182,8 +182,8 @@ test("无限层级子任务：三层都能正确归属和联动", async (t) => {
 
   const listed = await say("我有哪些任务？");
   assert.match(listed, /考研复习/);
-  assert.match(listed, /  □ 10\d 学习专业课/);
-  assert.match(listed, /    □ 10\d 背名词解释/);
+  assert.match(listed, /  □ 1 学习专业课/);
+  assert.match(listed, /    □ 2 背名词解释/);
 
   // 根任务完成，三层全部完成
   await say("考研复习做完了");
@@ -194,12 +194,14 @@ test("无限层级子任务：三层都能正确归属和联动", async (t) => {
   assert.deepEqual(store.list(), []);
 });
 
-test("清单以纯文本勾选清单输出且带递增序号", async (t) => {
+test("清单以纯文本勾选清单输出，父任务不带序号", async (t) => {
   await useTempData(t);
   await say("帮我记一下买牛奶");
   await say("再记一条取快递");
   const listed = await say("我有哪些任务？");
-  assert.match(listed, /□ 101 买牛奶/);
-  assert.match(listed, /□ 102 取快递/);
+  assert.match(listed, /📌 □ 买牛奶/);
+  assert.match(listed, /📌 □ 取快递/);
+  assert.doesNotMatch(listed, /\d+ 买牛奶/);
+  assert.doesNotMatch(listed, /\d+ 取快递/);
   assert.doesNotMatch(listed, /\|/);
 });

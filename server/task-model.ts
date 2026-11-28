@@ -358,11 +358,12 @@ export function collectDescendants(rootId: string, all: Task[]): Task[] {
 const PRIORITY_EMOJI: Record<Priority, string> = { high: "🔴", medium: "🟡", low: "🟢" };
 const PRIORITY_SHORT: Record<Priority, string> = { high: "高", medium: "中", low: "低" };
 
-/** 给当前列表里的任务分配 101、102、103…… 递增展示序号（先父后子）。 */
+/** 给子任务分配 1、2、3…… 递增展示序号（树形深度优先）；父任务不编号，指代时按标题匹配。 */
 export function assignDisplayIds(all: Task[]): Map<string, number> {
   const map = new Map<string, number>();
-  let counter = 100;
-  for (const { task } of flattenTree(all)) {
+  let counter = 0;
+  for (const { task, depth } of flattenTree(all)) {
+    if (depth === 0) continue;
     counter += 1;
     map.set(task.id, counter);
   }
@@ -382,8 +383,8 @@ function dueTag(task: Task): string {
 
 /**
  * 以纯文本分组清单展示任务（前端不渲染 Markdown，用 □/☑ 方框和缩进实现勾选清单观感）：
- * - 根任务作为分组标题，带子任务数量
- * - 每行用 □(待办)/☑(已完成) 方框 + 展示序号 + 标题
+ * - 根任务作为分组标题，带子任务数量，父任务不标序号
+ * - 每行用 □(待办)/☑(已完成) 方框 + 标题，子任务额外带 1、2…… 展示序号
  * - 子任务按层级缩进 2 个空格，支持无限层级
  */
 export function formatChecklist(all: Task[]): string {
@@ -401,7 +402,7 @@ export function formatChecklist(all: Task[]): string {
     const openChildren = children.filter((task) => !task.done).length;
     const count = children.length > 0 ? `（${openChildren}/${children.length}）` : "";
     lines.push(
-      `📌 ${root.done ? "☑" : "□"} ${ids.get(root.id)} ${root.title}${count}${priorityTag(root)}${dueTag(root)}`,
+      `📌 ${root.done ? "☑" : "□"} ${root.title}${count}${priorityTag(root)}${dueTag(root)}`,
     );
 
     const render = (parentId: string, depth: number) => {
