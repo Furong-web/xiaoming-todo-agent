@@ -1,10 +1,11 @@
 import type { ChatMessage } from "../shared/chat.ts";
 
-export async function requestReply(messages: ChatMessage[]): Promise<string> {
+/** conversationId 提供时，服务端会把本轮对话持久化到该会话。 */
+export async function requestReply(messages: ChatMessage[], conversationId?: string): Promise<string> {
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, ...(conversationId ? { conversationId } : {}) }),
   });
   const body: unknown = await response.json();
   if (typeof body === "object" && body !== null) {

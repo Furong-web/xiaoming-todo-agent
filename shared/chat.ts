@@ -8,6 +8,8 @@ const messageSchema = z.object({
 export type ChatMessage = z.infer<typeof messageSchema>;
 
 export const chatRequestSchema = z.object({
+  /** 可选：携带会话 id 时，服务端会把本轮对话记录进该会话 */
+  conversationId: z.string().min(1).optional(),
   messages: z
     .array(messageSchema)
     .min(1)

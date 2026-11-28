@@ -4,4 +4,6 @@ data/
 .env*
 !.env.example
 *.log
+*.pid
+*.err
 .DS_Store

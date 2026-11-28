@@ -7,15 +7,17 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { ChatMessage } from "../shared/chat.ts";
 import { createApp } from "./app.ts";
+import { createCheckInStore, type CheckInStore } from "./checkin-store.ts";
 import { createJsonTaskStore } from "./task-store.ts";
 
-async function startTestApp(t: TestContext) {
+async function startTestApp(t: TestContext, options: { checkIns?: CheckInStore } = {}) {
   const directory = await mkdtemp(join(tmpdir(), "todo-agent-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filename = join(directory, "tasks.json");
   const conversations: ChatMessage[][] = [];
   const app = createApp({
     tasks: createJsonTaskStore(filename),
+    checkIns: options.checkIns,
     async reply(messages) {
       conversations.push(messages);
       return "收到";
@@ -55,9 +57,12 @@ test("任务 API 可以创建、列出、修改和删除任务", async (t) => {
 
   const item = collection + "/" + task.id;
   const completed = await request("PATCH", item, { done: true });
-  assert.deepEqual(completed, { status: 200, body: { ...task, done: true } });
+  assert.equal(completed.status, 200);
+  assert.equal(completed.body.done, true);
+  // 完成时刻由服务端生成，不能由客户端指定
+  assert.equal(typeof completed.body.completedAt, "string");
   const renamed = await request("PATCH", item, { title: "买面包" });
-  assert.deepEqual(renamed, { status: 200, body: { ...task, title: "买面包", done: true } });
+  assert.deepEqual(renamed, { status: 200, body: { ...completed.body, title: "买面包" } });
   assert.deepEqual((await request("GET", collection)).body, [renamed.body]);
 
   assert.deepEqual(await request("DELETE", item), { status: 204, body: null });
@@ -79,7 +84,34 @@ test("更新已有 JSON 清单时保留其他任务和扩展字段", async (t) =
   await writeFile(filename, JSON.stringify([first, second]));
 
   assert.equal((await request("PATCH", "/api/tasks/a", { done: true })).status, 200);
-  assert.deepEqual(createJsonTaskStore(filename).list(), [{ ...first, done: true }, second]);
+  const stored = createJsonTaskStore(filename).list();
+  assert.equal(stored.length, 2);
+  assert.equal(stored[0].done, true);
+  assert.equal(typeof stored[0].completedAt, "string");
+  assert.equal(stored[0].priority, 1); // 原有扩展字段仍被保留
+  assert.deepEqual(stored[1], second);
+});
+
+test("历史已完成任务用真实打卡记录补全完成时刻，没有记录的不编造", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "todo-agent-checkin-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const checkIns = createCheckInStore(join(directory, "checkins.json"));
+  const { request, filename } = await startTestApp(t, { checkIns });
+  await writeFile(filename, JSON.stringify([
+    { id: "a", title: "学言语", done: true },
+    { id: "b", title: "买牛奶", done: true },
+    { id: "c", title: "背单词", done: false },
+  ]));
+
+  const clock = new Date(2026, 10, 28, 10, 32, 0);
+  checkIns.add({ taskId: "a", taskTitle: "学言语" }, clock);
+
+  const list = (await request("GET", "/api/tasks")).body;
+  assert.equal(list[0].completedAt, clock.toISOString());
+  assert.equal(list[1].completedAt, undefined);
+  assert.equal(list[2].completedAt, undefined);
+  // 只在响应里补，不改磁盘上的任务数据
+  assert.equal(createJsonTaskStore(filename).list()[0].completedAt, undefined);
 });
 
 test("聊天 API 只将有效的完整对话传给智能体，并返回其回复", async (t) => {

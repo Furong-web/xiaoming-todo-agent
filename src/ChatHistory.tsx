@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
-import type { ChatMessage } from "../shared/chat.ts";
+import type { StoredMessage } from "./chat-storage.ts";
+import { formatTime } from "./chat-storage.ts";
 
 const examplePrompts = ["提醒我买牛奶", "看看我的待办"];
 
 interface ChatHistoryProps {
-  messages: ChatMessage[];
+  messages: StoredMessage[];
   pending: boolean;
   onSelectPrompt: (prompt: string) => void;
 }
@@ -35,7 +36,10 @@ export function ChatHistory({ messages, pending, onSelectPrompt }: ChatHistoryPr
         <div className="thread" role="log" aria-label="对话记录" aria-live="polite">
           {messages.map((message, index) => (
             <div key={index} className={`message ${message.role}`}>
-              <small>{message.role === "user" ? "你" : "小明智能体"}</small>
+              <small>
+                {message.role === "user" ? "你" : "小明智能体"}
+                {message.time ? ` · ${formatTime(message.time)}` : ""}
+              </small>
               <div>{message.content}</div>
             </div>
           ))}

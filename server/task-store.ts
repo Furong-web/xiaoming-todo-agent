@@ -6,11 +6,13 @@ import { z } from "zod";
 const storedTask = z.looseObject({ id: z.string(), title: z.string(), done: z.boolean() });
 const taskList = z.array(storedTask);
 type Task = z.infer<typeof storedTask>;
-type TaskChanges = Partial<Pick<Task, "title" | "done">>;
+type TaskChanges = Partial<Pick<Task, "title" | "done">> & Record<string, unknown>;
+/** 创建时允许附带扩展字段（优先级、截止日期、父任务等），由 looseObject 原样保存。 */
+type TaskExtras = Record<string, unknown>;
 
 export interface TaskStore {
   list(): Task[];
-  create(title: string): Task;
+  create(title: string, extras?: TaskExtras): Task;
   update(id: string, changes: TaskChanges): Task | undefined;
   remove(id: string): boolean;
 }
@@ -32,8 +34,8 @@ export function createJsonTaskStore(filename: string): TaskStore {
   return {
     list,
 
-    create(title) {
-      const task = { id: randomUUID(), title, done: false };
+    create(title, extras = {}) {
+      const task = { ...extras, id: randomUUID(), title, done: false };
       save([...list(), task]);
       return task;
     },
